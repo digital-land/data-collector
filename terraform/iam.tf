@@ -17,12 +17,12 @@ data "aws_iam_policy_document" "data-collector-iam-policy" {
 
     actions = [
       "dynamodb:BatchWriteItem",
+      "dynamodb:Query",
+      "dynamodb:UpdateItem",
       "dynamodb:DescribeStream",
       "dynamodb:GetRecords",
       "dynamodb:GetShardIterator",
-      "dynamodb:ListStreams",
-      "dynamodb:Query",
-      "dynamodb:UpdateItem"
+      "dynamodb:ListStreams"
     ]
 
     resources = [

@@ -1,3 +1,4 @@
+/* eslint-env mocha */
 const assert = require('chai').assert
 const helper = require('./../helper.js')
 

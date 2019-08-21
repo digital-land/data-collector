@@ -13,9 +13,15 @@ resource "aws_lambda_function" "data-collector-lambda-getMaster" {
   source_code_hash = data.archive_file.data-collector-zip.output_base64sha256
   handler          = "handler.getMaster"
   runtime          = "nodejs10.x"
-  timeout          = 10
+  timeout          = 30
   description      = "Gets and stores a record of the register of register entries in Dynamo"
   role             = aws_iam_role.data-collector-iam-role.arn
+
+  environment {
+    variables = {
+      type = "brownfield-sites"
+    }
+  }
 
   # Billing tags
   tags = local.digital_land_tags
@@ -47,6 +53,6 @@ resource "aws_lambda_event_source_mapping" "data-collector-event" {
   batch_size        = 1
   enabled           = true
   starting_position = "LATEST"
-  function_name     = aws_lambda_function.data-collector-lambda-getSingular.function_name
+  function_name     = aws_lambda_function.data-collector-lambda-getSingular.arn
   event_source_arn  = aws_dynamodb_table.data-collector-dynamodb.stream_arn
 }
