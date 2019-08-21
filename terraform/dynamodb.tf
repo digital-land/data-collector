@@ -27,6 +27,7 @@ resource "aws_dynamodb_table" "data-collector-dynamodb" {
     name            = "OrganisationDateIndex"
     hash_key        = "organisation"
     range_key       = "date"
+    read_capacity   = 1
     write_capacity  = 1
     projection_type = "ALL"
   }

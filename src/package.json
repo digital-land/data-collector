@@ -4,7 +4,7 @@
   "description": "A prototype for data collection from remote URLs",
   "main": "index.js",
   "scripts": {
-    "test": "node ./node_modules/.bin/nyc --reporter=lcov --reporter=html ./node_modules/.bin/mocha --timeout 30s tests"
+    "test": "NODE_ENV=test type=brownfield-sites node ./node_modules/.bin/nyc --reporter=lcov --reporter=html ./node_modules/.bin/mocha --timeout 30s tests"
   },
   "repository": {
     "type": "git",
@@ -17,15 +17,16 @@
   },
   "homepage": "https://github.com/digital-land/data-collector#readme",
   "dependencies": {
-    "aws-sdk": "^2.512.0",
+    "aws-sdk": "^2.514.0",
     "axios": "^0.19.0",
-    "csvtojson": "^2.0.10",
-    "mmmagic": "^0.5.3"
+    "csvtojson": "^2.0.10"
   },
   "devDependencies": {
+    "aws-sdk-mock": "^4.5.0",
     "chai": "^4.2.0",
     "mocha": "^6.2.0",
     "nock": "^10.0.6",
-    "nyc": "^14.1.1"
+    "nyc": "^14.1.1",
+    "timekeeper": "^2.2.0"
   }
 }

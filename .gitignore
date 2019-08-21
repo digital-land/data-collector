@@ -69,3 +69,5 @@ typings/
 tmp/*
 
 handler.zip
+
+*.tfstate*
