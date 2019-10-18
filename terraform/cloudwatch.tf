@@ -1,6 +1,5 @@
 resource "aws_cloudwatch_event_rule" "data-collector" {
   name                = "data-collector-getMaster"
-  description         = "Runs the data collector at 12am UTC every day"
   schedule_expression = "cron(0 0 * * ? *)"
   is_enabled          = true
 

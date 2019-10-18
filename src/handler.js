@@ -1,194 +1,145 @@
-const AWS = require('./helper.js')
+const AWS = require('aws-sdk')
+AWS.config.update({ region: 'eu-west-2' })
+const sqs = new AWS.SQS({ apiVersion: '2012-11-05' })
+const s3 = new AWS.S3({ apiVersion: '2006-03-01' })
+
 const axios = require('axios')
 const crypto = require('crypto')
-const csv = require('csvtojson')
+const csv = require('csv')
 const fs = require('fs')
 
-const tableParams = {
-  TableName: 'DataCollector'
-}
+/* TODO: Find a better way to measure time taken for the request to complete */
+const performance = require('perf_hooks').performance
+axios.interceptors.request.use(config => {
+  performance.now()
+  return config
+})
+
+axios.interceptors.response.use(response => {
+  response.elapsed = performance.now()
+  return response
+})
 
 const actions = {
-  async checkIfFilesExist (key) {
-    return AWS.S3.headObject({
-      Bucket: 'digital-land-data-collector',
-      Key: key
-    }).promise().then(() => true).catch(() => false)
-  },
-  generateRandomId () {
-    return crypto.randomBytes(24).toString('hex')
-  },
-  getTodaysDate () {
-    return new Date().toISOString().split('T')[0]
-  },
-  mapPutRequests (item) {
-    return {
-      PutRequest: {
-        Item: {
-          organisation: (item.organisation) ? (`${item.organisation.toString()}:${process.env.type}`) : null,
-          date: actions.getTodaysDate(),
-          'register-url': item['register-url'] || null,
-          references: {
-            headers: null,
-            validation: null,
-            response: {
-              original: null,
-              fixed: null
-            }
-          }
-        }
-      }
+  getHeader (response, checksum, organisation) {
+    const obj = {
+      checksum: null,
+      body: JSON.stringify({
+        datetime: actions.getTodaysDate(),
+        elapsed: response.elapsed,
+        'request-headers': response.config.headers,
+        'response-headers': response.headers,
+        status: response.status || 'UNKNOWN_STATUS',
+        body: checksum,
+        dataset: process.env.dataset,
+        organisation: organisation
+      })
     }
+
+    obj.checksum = crypto.createHash('sha256').update(obj.body).digest('hex')
+
+    return obj
   },
-  mapStatus (status) {
-    if (status === 'ENOTFOUND') {
-      return 404
-    } else if (status === 'ECONNABORTED') {
-      return 408
-    } else if (status === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') {
-      return 'TLS_ERROR'
-    } else if (status === 'HPE_INVALID_CONSTANT') {
-      return 'PARSE_ERROR'
-    }
-    return status || 'UNKNOWN_ERROR'
+  getTodaysDate (short = false) {
+    const date = (new Date()).toISOString()
+    return (short === true) ? date.split('T')[0] : date
   },
   retrieve (url) {
-    const obj = {
-      response: null,
-      error: false,
-      headers: {
-        raw: null,
-        status: null,
-        mime: null
-      }
-    }
-
     return axios.get(url, {
-      timeout: 5000,
+      timeout: 10000,
       responseType: 'stream',
       validateStatus () {
-        return true // Never throw an error unless there is an error with the request, or Axios
+        return true // Never throw an error unless there's a problem with Axios or the like
       }
-    }).then(response => new Promise((resolve, reject) => {
-      const id = actions.generateRandomId()
-      const pipe = response.data.pipe(fs.createWriteStream(`/tmp/${id}`))
-
-      pipe.on('finish', () => {
-        obj.response = fs.readFileSync(`/tmp/${id}`)
-        obj.headers.raw = response.headers
-        obj.headers.status = response.status
-        fs.unlinkSync(`/tmp/${id}`)
-        resolve(obj)
-      })
-      pipe.on('error', () => {
-        obj.error = 'PIPE_ERROR'
-        reject(obj)
-      })
-    })).catch(error => {
-      obj.error = true
-      obj.response = 'An error occurred, and there was no response.'
-
-      if (error.response) {
-        obj.response = error.response.data
-        obj.headers.raw = error.response.headers
-        obj.headers.status = error.response.status
-      } else if (error.request) {
-        obj.headers.status = actions.mapStatus(error.code)
-      } else {
-        obj.headers.status = actions.mapStatus(error.message)
-      }
-
-      return obj
     })
-  }
-}
-
-exports.getMaster = async () => {
-  const promises = []
-  const params = {
-    RequestItems: {}
-  }
-
-  if (!process.env.type) {
-    throw new Error('getMaster => no type set')
-  }
-
-  try {
-    const master = await actions.retrieve(`https://raw.githubusercontent.com/digital-land/data-schemas/master/${process.env.type}/register.csv`)
-    const json = await csv().fromString(master.response.toString())
-
-    while (json.length) {
-      const chunk = Object.assign({}, params)
-      chunk.RequestItems[tableParams.TableName] = json.splice(0, 25).map(actions.mapPutRequests)
-      promises.push(AWS.Dynamo.batchWrite(chunk).promise())
+  },
+  async getMaster () {
+    if (!process.env.dataset) {
+      throw new Error('No dataset specified')
     }
 
-    return Promise.all(promises)
-  } catch (error) {
-    throw new Error('getMaster error => ' + JSON.stringify(error, null, 4))
-  }
-}
+    try {
+      return await actions.retrieve(`https://raw.githubusercontent.com/digital-land/data-schemas/master/${process.env.dataset}/register.csv`)
+        .then(response => {
+          return new Promise((resolve, reject) => {
+            const promises = []
+            response.data.pipe(csv.parse({ delimiter: ',', columns: true }))
+              .on('data', item => {
+                item.dataset = process.env.dataset
+                return promises.push(actions.sendSQSMessage(item))
+              })
+              .on('end', () => {
+                return Promise.all(promises)
+              })
+              .on('error', error => {
+                throw new Error('Error in piping =>', error)
+              })
+          })
+        })
+    } catch (error) {
+      return console.error('Error in getMaster =>', error)
+    }
+  },
+  async getSingular (stream) {
+    const record = stream.Records.find(record => {
+      return (record !== undefined)
+    })
 
-exports.getSingular = async stream => {
-  const promises = []
-  const found = stream.Records.find(item => item.eventName === 'INSERT')
+    if (!record) {
+      throw new Error('No record available from stream =>', stream)
+    }
 
-  if (found && found.dynamodb.NewImage['register-url'] && found.dynamodb.NewImage['register-url'].S) {
-    const response = await actions.retrieve(found.dynamodb.NewImage['register-url'].S)
+    // Renormalise the body into JSON
+    record.body = record.body ? JSON.parse(record.body) : null
 
-    // Uplaod header file
-    const headerString = JSON.stringify(response.headers)
-    const headerHash = crypto.createHash('sha256').update(headerString).digest('hex')
-    const headerKey = `headers/${actions.getTodaysDate()}/${headerHash}.json`
+    try {
+      return await actions.retrieve(record.body['register-url'])
+        .then(response => {
+          const promises = []
+          const id = crypto.randomBytes(24).toString('hex')
+          const pipe = response.data.pipe(fs.createWriteStream(`/tmp/${id}`))
 
-    const headers = AWS.S3.putObject({
-      Key: headerKey,
-      Body: headerString,
-      Bucket: 'digital-land-data-collector'
+          pipe.on('finish', () => {
+            const responseBody = fs.readFileSync(`/tmp/${id}`)
+            const responseChecksum = crypto.createHash('sha256').update(responseBody).digest('hex')
+
+            // Upload headers and response to S3
+            const headers = actions.getHeader(response, responseChecksum, record.body.organisation)
+            promises.push(actions.uploadToS3(`headers/${actions.getTodaysDate(true)}/${headers.checksum}.json`, headers.body))
+            promises.push(actions.uploadToS3(`bodies/${responseChecksum}`, responseBody))
+
+            // Delete SQS Message
+            promises.push(actions.deleteSQSMessage(record.receiptHandle))
+
+            return fs.unlinkSync(`/tmp/${id}`)
+          })
+        })
+    } catch (error) {
+      return console.error('Error in getSingular =>', error)
+    }
+  },
+  sendSQSMessage (record) {
+    return sqs.sendMessage({
+      MessageBody: JSON.stringify(record),
+      QueueUrl: process.env.sqsurl
     }).promise()
-
-    promises.push(headers)
-
-    // Upload bodies
-    const bodiesHash = crypto.createHash('sha256').update(response.response).digest('hex')
-    const bodyKey = `bodies/${bodiesHash}`
-    const bodyExists = await actions.checkIfFilesExist(bodyKey)
-
-    if (!bodyExists) {
-      const body = {
-        Key: bodyKey,
-        Body: response.response,
-        Bucket: 'digital-land-data-collector'
-      }
-
-      promises.push(AWS.S3.putObject(body).promise())
-    }
-
-    // Update DynamoDB record
-    const dynamoParams = Object.assign(tableParams, {})
-    dynamoParams.Key = {
-      date: actions.getTodaysDate(),
-      organisation: found.dynamodb.NewImage.organisation.S
-    }
-    dynamoParams.UpdateExpression = 'set #ref = :ref'
-    dynamoParams.ExpressionAttributeValues = {
-      ':ref': {
-        headers: headerKey,
-        validation: null,
-        response: {
-          original: bodyKey,
-          fixed: null
-        }
-      }
-    }
-    dynamoParams.ExpressionAttributeNames = {
-      '#ref': 'references'
-    }
-
-    promises.push(AWS.Dynamo.update(dynamoParams).promise())
+  },
+  deleteSQSMessage (receipt) {
+    return sqs.deleteMessage({
+      QueueUrl: process.env.sqsurl,
+      ReceiptHandle: receipt
+    }).promise()
+  },
+  uploadToS3 (key, body) {
+    return s3.upload({
+      Bucket: process.env.bucket,
+      Key: key,
+      Body: body,
+      ACL: 'public-read'
+    }).promise()
   }
-
-  return Promise.all(promises)
 }
 
+exports.getMaster = actions.getMaster
+exports.getSingular = actions.getSingular
 exports.actions = actions

@@ -1,3 +1,9 @@
+provider "aws" {
+  region = "eu-west-2"
+}
+
+provider "archive" {}
+
 locals {
   digital_land_tags = {
     application-name       = "data-collector"
