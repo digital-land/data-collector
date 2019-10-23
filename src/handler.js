@@ -143,7 +143,7 @@ const actions = {
         throw new Error('No dataset present =>', record)
       }
 
-      dataset = record.body['dataset']
+      let dataset = record.body['dataset']
 
       // Wrong in CSV
       dataset = 'brownfield-sites'
