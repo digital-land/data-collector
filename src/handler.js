@@ -20,16 +20,16 @@ const actions = {
   retrieve (url, organisation = null, dataset = null) {
     const id = crypto.randomBytes(24).toString('hex')
 
-    return new Promise(function (resolve, reject) {
+    return new Promise((resolve, reject) => {
       const result = {
         headers: {
           checksum: crypto.createHash('sha256').update(url).digest('hex'),
           data: {
-            dataset: dataset,
+            dataset,
             datetime: actions.getTodaysDate(),
             elapsed: null,
-            url: url,
-            organisation: organisation,
+            url,
+            organisation,
             'request-headers': null,
             'response-headers': null
           }
@@ -45,14 +45,14 @@ const actions = {
       return axios.get(url, {
         timeout: 10000,
         responseType: 'stream'
-      }).then(function (response) {
+      }).then(response => {
         const pipe = response.data.pipe(fs.createWriteStream(`/tmp/${id}`))
 
-        pipe.on('finish', function () {
+        pipe.on('finish', () => {
           result.headers.data['request-headers'] = response.config.headers
           result.headers.data['response-headers'] = response.headers
           result.headers.data.status = actions.mapStatus(response.status)
-          result.body.data = fs.readFileSync('/tmp/' + id).toString()
+          result.body.data = fs.readFileSync(`/tmp/${id}`).toString()
           result.body.checksum = crypto.createHash('sha256').update(result.body.data).digest('hex')
 
           result.headers.data.elapsed = performance.now().toString()
@@ -61,7 +61,7 @@ const actions = {
 
           return resolve(result)
         })
-      }).catch(function (error) {
+      }).catch(error => {
         // If there's an error, we don't want to store the body - just the headers
         if (error.response) {
           result.headers.data['request-headers'] = error.response.config.headers
@@ -80,7 +80,7 @@ const actions = {
       })
     })
   },
-  mapStatus: function (status) {
+  mapStatus (status) {
     if (status === 'ENOTFOUND') {
       status = 404
     } else if (status === 'ECONNABORTED') {
@@ -112,7 +112,7 @@ const actions = {
       ACL: 'public-read'
     }).promise()
   },
-  getDatasets: async function () {
+  async getDatasets () {
     try {
       const datasets = await actions.retrieve(process.env.datasetsurl)
       const parsed = parse(datasets.body.data, { delimiter: ',', columns: true })
@@ -128,9 +128,7 @@ const actions = {
     }
   },
   async getMaster (stream) {
-    const record = stream.Records.find(function (record) {
-      return (record !== undefined)
-    })
+    const record = stream.Records.find(record => record !== undefined)
 
     if (!record) {
       throw new Error('No record available from stream =>', stream)
@@ -150,12 +148,10 @@ const actions = {
 
       const register = await actions.retrieve(`https://raw.githubusercontent.com/digital-land/${dataset}-collection/master/datasets/brownfield-land.csv`)
 
-      const parsed = parse(register.body.data, { delimiter: ',', columns: true }).map(function (row) {
+      const parsed = parse(register.body.data, { delimiter: ',', columns: true }).map(row => {
         row.dataset = dataset
         return row
-      }).filter(function (row) {
-        return row['resource-url']
-      })
+      }).filter(row => row['resource-url'])
 
       const promises = []
       for (const row in parsed) {
@@ -170,9 +166,7 @@ const actions = {
     }
   },
   async getSingular (stream) {
-    const record = stream.Records.find(record => {
-      return (record !== undefined)
-    })
+    const record = stream.Records.find(record => record !== undefined)
 
     if (!record) {
       throw new Error('No record available from stream =>', stream)
@@ -183,7 +177,7 @@ const actions = {
 
     try {
       if (!record.body['resource-url']) {
-        return console.log('No URL present for ' + record.body['organisation'])
+        return console.log(`No URL present for ${record.body['organisation']}`)
       }
 
       const promises = []
