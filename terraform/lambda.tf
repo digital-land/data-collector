@@ -4,6 +4,26 @@ data "archive_file" "data-collector-zip" {
   source_dir = "../src"
 }
 
+resource "aws_lambda_function" "data-collector-lambda-getDatasets" {
+  function_name    = "data-collector-getDatasets"
+  filename         = data.archive_file.data-collector-zip.output_path
+  source_code_hash = data.archive_file.data-collector-zip.output_base64sha256
+  handler          = "handler.getDatasets"
+  runtime          = "nodejs10.x"
+  timeout          = 30
+  role             = aws_iam_role.data-collector-iam-role.arn
+
+  environment {
+    variables = {
+      sqsurl      = aws_sqs_queue.data-collector-datasets-queue.id
+      datasetsurl = "https://raw.githubusercontent.com/digital-land/brownfield-sites-collection/master/datasets/dataset.csv"
+    }
+  }
+
+  # Billing tags
+  tags = local.digital_land_tags
+}
+
 resource "aws_lambda_function" "data-collector-lambda-getMaster" {
   function_name    = "data-collector-getMaster"
   filename         = data.archive_file.data-collector-zip.output_path
@@ -15,8 +35,8 @@ resource "aws_lambda_function" "data-collector-lambda-getMaster" {
 
   environment {
     variables = {
-      dataset = "brownfield-sites"
-      sqsurl  = aws_sqs_queue.data-collector-queue.id
+      dataset_sqs_url = aws_sqs_queue.data-collector-datasets-queue.id
+      sqsurl          = aws_sqs_queue.data-collector-queue.id
     }
   }
 
@@ -35,7 +55,6 @@ resource "aws_lambda_function" "data-collector-lambda-getSingular" {
 
   environment {
     variables = {
-      dataset = "brownfield-sites"
       sqsurl  = aws_sqs_queue.data-collector-queue.id
       bucket  = aws_s3_bucket.data-collector.id
     }
@@ -43,6 +62,13 @@ resource "aws_lambda_function" "data-collector-lambda-getSingular" {
 
   # Billing tags
   tags = local.digital_land_tags
+}
+
+resource "aws_lambda_event_source_mapping" "data-collector-getMaster-event-source" {
+  event_source_arn = aws_sqs_queue.data-collector-datasets-queue.arn
+  function_name    = aws_lambda_function.data-collector-lambda-getMaster.arn
+  batch_size = 1
+  enabled = true
 }
 
 resource "aws_lambda_event_source_mapping" "data-collector-getSingular-event-source" {

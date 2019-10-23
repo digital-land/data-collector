@@ -1,5 +1,5 @@
 resource "aws_cloudwatch_event_rule" "data-collector" {
-  name                = "data-collector-getMaster"
+  name                = "data-collector-getDatasets"
   schedule_expression = "cron(0 0 * * ? *)"
   is_enabled          = true
 
@@ -10,5 +10,5 @@ resource "aws_cloudwatch_event_rule" "data-collector" {
 resource "aws_cloudwatch_event_target" "data-collector-target" {
   rule      = aws_cloudwatch_event_rule.data-collector.name
   target_id = "data-collector"
-  arn       = aws_lambda_function.data-collector-lambda-getMaster.arn
+  arn       = aws_lambda_function.data-collector-lambda-getDatasets.arn
 }
