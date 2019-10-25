@@ -49,12 +49,13 @@ const actions = {
         const pipe = response.data.pipe(fs.createWriteStream(`/tmp/${id}`))
 
         pipe.on('finish', () => {
-          result.headers.data['request-headers'] = response.config.headers
-          result.headers.data['response-headers'] = response.headers
-          result.headers.data.status = actions.mapStatus(response.status)
           result.body.data = fs.readFileSync(`/tmp/${id}`).toString()
           result.body.checksum = crypto.createHash('sha256').update(result.body.data).digest('hex')
 
+          result.headers.data['request-headers'] = response.config.headers
+          result.headers.data['response-headers'] = response.headers
+          result.headers.data.status = actions.mapStatus(response.status)
+          result.headers.data.body = result.body.checksum
           result.headers.data.elapsed = performance.now().toString()
 
           fs.unlinkSync(`/tmp/${id}`)
@@ -75,6 +76,7 @@ const actions = {
         }
 
         result.headers.data.elapsed = performance.now().toString()
+        result.headers.data.body = null
 
         return resolve(result)
       })
