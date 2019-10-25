@@ -185,10 +185,10 @@ const actions = {
       const promises = []
       const register = await actions.retrieve(record.body['resource-url'], record.body['organisation'], record.body['dataset'])
 
-      promises.push(actions.uploadToS3(`headers/test/${actions.getTodaysDate(true)}/${register.headers.checksum}.json`, JSON.stringify(register.headers.data)))
+      promises.push(actions.uploadToS3(`headers/${actions.getTodaysDate(true)}/${register.headers.checksum}.json`, JSON.stringify(register.headers.data)))
 
       if (register.body.checksum && register.body.data) {
-        promises.push(actions.uploadToS3(`bodies/test/${register.body.checksum}`, register.body.data))
+        promises.push(actions.uploadToS3(`bodies/${register.body.checksum}`, register.body.data))
       }
 
       promises.push(actions.deleteSQSMessage(record.receiptHandle))
