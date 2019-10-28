@@ -1,5 +1,6 @@
 provider "aws" {
-  region = "eu-west-2"
+  region  = "eu-west-2"
+  version = "~> 2.33"
 }
 
 provider "archive" {}
