@@ -92,7 +92,7 @@ const actions = {
     } else if (status === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') {
       status = 'TLS_ERROR'
     }
-    return status.toString() || 'UNKNOWN_ERROR'
+    return status ? status.toString() : 'UNKNOWN_ERROR'
   },
   async sendSQSMessage (record) {
     return sqs.sendMessage({

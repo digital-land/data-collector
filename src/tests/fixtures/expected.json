@@ -1,0 +1,91 @@
+{
+  "resolvable": {
+    "headers": {
+        "checksum": "c6f528e1f6af97c3d089e314eef04ae7f9ba358bb81ccbabf6b165bdc0e19e65",
+        "data": {
+            "dataset": null,
+            "datetime": "2019-01-01T00:00:00.000Z",
+            "url": "https://fakeurl.com",
+            "organisation": null,
+            "request-headers": {
+                "Accept": "application/json, text/plain, */*",
+                "User-Agent": "Digital Land data collector"
+            },
+            "response-headers": {},
+            "status": "200",
+            "body": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        }
+    },
+    "body": {
+        "checksum": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        "data": "hello"
+    }
+  },
+  "resolvableWithOrganisation": {
+    "headers": {
+        "checksum": "c6f528e1f6af97c3d089e314eef04ae7f9ba358bb81ccbabf6b165bdc0e19e65",
+        "data": {
+            "dataset": "test-register",
+            "datetime": "2019-01-01T00:00:00.000Z",
+            "url": "https://fakeurl.com",
+            "organisation": "local-authority-eng:test",
+            "request-headers": {
+                "Accept": "application/json, text/plain, */*",
+                "User-Agent": "Digital Land data collector"
+            },
+            "response-headers": {},
+            "status": "200",
+            "body": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        }
+    },
+    "body": {
+        "checksum": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        "data": "hello"
+    }
+  },
+  "not200": {
+    "headers": {
+        "checksum": "47453c3909b21edcf72c0f5f38bf2e70bc7592ebaa3048eae8e91273591b2840",
+        "data": {
+            "dataset": null,
+            "datetime": "2019-01-01T00:00:00.000Z",
+            "url": "https://fakeurl.com/404",
+            "organisation": null,
+            "request-headers": {
+                "Accept": "application/json, text/plain, */*",
+                "User-Agent": "Digital Land data collector"
+            },
+            "response-headers": {},
+            "status": "404",
+            "body": null
+        }
+    },
+    "body": {
+        "checksum": null,
+        "data": null
+    }
+  },
+  "timeout": {
+    "headers": {
+        "checksum": "d517b0465946e66e77fad52cf12f29c86b3329b4505580214723380e59594572",
+        "data": {
+            "dataset": null,
+            "datetime": "2019-01-01T00:00:00.000Z",
+            "elapsed": "12296.811560034752",
+            "url": "https://fakeurl.com/timeout",
+            "organisation": null,
+            "request-headers": {
+                "Accept": "application/json, text/plain, */*",
+                "User-Agent": "Digital Land data collector"
+            },
+            "response-headers": null,
+            "status": "408",
+            "body": null
+        }
+    },
+    "body": {
+        "checksum": null,
+        "data": null
+    }
+  }
+}

@@ -17,9 +17,15 @@
   },
   "homepage": "https://github.com/digital-land/data-collector#readme",
   "dependencies": {
-    "aws-sdk": "^2.554.0",
+    "aws-sdk": "^2.556.0",
     "axios": "^0.19.0",
     "csv-parse": "^4.6.5"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^6.2.2",
+    "nock": "^11.6.0",
+    "nyc": "^14.1.1",
+    "timekeeper": "^2.2.0"
+  }
 }

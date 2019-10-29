@@ -71,3 +71,5 @@ tmp/*
 handler.zip
 
 *.tfstate*
+
+*.backup
